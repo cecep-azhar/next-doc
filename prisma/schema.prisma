@@ -1,0 +1,306 @@
+// This is your Prisma schema file
+// Compatible with: SQLite, Turso (libSQL), MySQL, PostgreSQL, PlanetScale, Neon
+// Switch database by changing DATABASE_URL in .env
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite" // Will be overridden by DATABASE_URL
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// AUTHENTICATION & USER MANAGEMENT
+// =============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // For credentials auth
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth.js relations
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Multi-tenancy
+  tenantMembers TenantMember[]
+  ownedTenants  Tenant[]       @relation("TenantOwner")
+  
+  // Activity
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPERADMIN // Full system access
+  USER       // Regular user
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // @db.Text for MySQL/PostgreSQL
+  access_token      String? // @db.Text for MySQL/PostgreSQL
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // @db.Text for MySQL/PostgreSQL
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// =============================================================================
+// MULTI-TENANT SAAS
+// =============================================================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // For subdomain: slug.docuverse.id
+  domain    String?  @unique // Custom domain: docs.company.com
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  ownerId String
+  owner   User   @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Subscription
+  plan              Plan              @default(FREE)
+  stripeCustomerId  String?           @unique
+  stripeSubscriptionId String?        @unique
+  stripeProductId   String?
+  stripePriceId     String?
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  trialEndsAt       DateTime?
+  subscriptionEndsAt DateTime?
+
+  // Settings
+  settings TenantSettings?
+
+  // Relations
+  members  TenantMember[]
+  projects Project[]
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([stripeCustomerId])
+  @@map("tenants")
+}
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+model TenantSettings {
+  id       String @id @default(cuid())
+  tenantId String @unique
+
+  // Branding
+  primaryColor   String  @default("#3b82f6")
+  accentColor    String  @default("#06b6d4")
+  customCSS      String? // @db.Text for MySQL/PostgreSQL
+  customJS       String? // @db.Text for MySQL/PostgreSQL
+
+  // Features
+  allowPublicDocs Boolean @default(true)
+  enableSearch    Boolean @default(true)
+  enableAnalytics Boolean @default(false)
+  enableVersioning Boolean @default(true)
+
+  // Integrations
+  githubRepo      String?
+  slackWebhook    String?
+  analyticsId     String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_settings")
+}
+
+model TenantMember {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      TenantRole @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("tenant_members")
+}
+
+enum TenantRole {
+  OWNER  // Full access
+  ADMIN  // Manage content & members
+  MEMBER // Edit content
+  VIEWER // Read-only access
+}
+
+// =============================================================================
+// DOCUMENTATION SYSTEM
+// =============================================================================
+
+model Project {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  logo        String?
+  isPublic    Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions Version[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([slug])
+  @@map("projects")
+}
+
+model Version {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String // "v1.0", "v2.0"
+  slug        String // "v1", "v2"
+  isDefault   Boolean  @default(false)
+  isPublished Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+  @@map("versions")
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  versionId String
+  title     String
+  slug      String
+  content   String // @db.Text for MySQL/PostgreSQL — MDX content
+  excerpt   String?
+  locale    String   @default("en") // "en" or "id"
+  
+  // Navigation
+  category  String?
+  order     Int      @default(0)
+  parentId  String?
+  
+  // Metadata
+  author    String?
+  tags      String? // JSON array
+  
+  // Publishing
+  isPublished Boolean  @default(true)
+  publishedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  version Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, slug, locale])
+  @@index([versionId])
+  @@index([slug])
+  @@index([locale])
+  @@map("documents")
+}
+
+// =============================================================================
+// SYSTEM & ANALYTICS
+// =============================================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  tenantId  String?
+  action    String
+  resource  String
+  resourceId String?
+  metadata  String? // @db.Text for MySQL/PostgreSQL — JSON
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  company   String?
+  source    String?
+  createdAt DateTime @default(now())
+
+  @@map("waitlist")
+}
