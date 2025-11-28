@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/auth-config';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -64,13 +64,9 @@ export default auth(async (req) => {
   
   // If subdomain exists and not on auth route, handle tenant routing
   if (subdomain && !isAuthRoute && !isApiRoute) {
-    // Verify tenant exists
-    const tenantExists = await verifyTenant(subdomain);
+    // Note: Tenant verification moved to page-level since Edge Runtime doesn't support DB queries
+    // The actual tenant check will happen in the page component
     
-    if (!tenantExists) {
-      return NextResponse.redirect(new URL('/?error=tenant-not-found', nextUrl));
-    }
-
     // For authenticated tenant routes, ensure user is logged in
     if (nextUrl.pathname.startsWith('/dashboard') || 
         nextUrl.pathname.startsWith('/settings')) {
@@ -146,23 +142,6 @@ function getSubdomain(hostname: string): string | null {
   
   // If exactly 2 parts (e.g., docuverse.id), no subdomain
   return null;
-}
-
-/**
- * Verify tenant exists in database
- */
-async function verifyTenant(slug: string): Promise<boolean> {
-  try {
-    const { db } = await import('@/lib/db');
-    const tenant = await db.tenant.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-    return !!tenant;
-  } catch (error) {
-    console.error('Error verifying tenant:', error);
-    return false;
-  }
 }
 
 // =============================================================================

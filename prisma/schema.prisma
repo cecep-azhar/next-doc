@@ -3,12 +3,11 @@
 // Switch database by changing DATABASE_URL in .env
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite" // Will be overridden by DATABASE_URL
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,7 +22,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String? // For credentials auth
-  role          UserRole  @default(USER)
+  role          String  @default("USER") // UserRole: SUPERADMIN, USER
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -42,10 +41,7 @@ model User {
   @@map("users")
 }
 
-enum UserRole {
-  SUPERADMIN // Full system access
-  USER       // Regular user
-}
+// UserRole values: SUPERADMIN (Full system access), USER (Regular user)
 
 model Account {
   id                String  @id @default(cuid())
@@ -53,12 +49,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? // @db.Text for MySQL/PostgreSQL
-  access_token      String? // @db.Text for MySQL/PostgreSQL
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? // @db.Text for MySQL/PostgreSQL
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -106,12 +102,12 @@ model Tenant {
   owner   User   @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Subscription
-  plan              Plan              @default(FREE)
+  plan              String  @default("FREE") // Plan: FREE, PRO, TEAM
   stripeCustomerId  String?           @unique
   stripeSubscriptionId String?        @unique
   stripeProductId   String?
   stripePriceId     String?
-  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  subscriptionStatus String @default("ACTIVE") // SubscriptionStatus: ACTIVE, TRIALING, PAST_DUE, CANCELED, UNPAID
   trialEndsAt       DateTime?
   subscriptionEndsAt DateTime?
 
@@ -128,19 +124,8 @@ model Tenant {
   @@map("tenants")
 }
 
-enum Plan {
-  FREE
-  PRO
-  TEAM
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  TRIALING
-  PAST_DUE
-  CANCELED
-  UNPAID
-}
+// Plan values: FREE, PRO, TEAM
+// SubscriptionStatus values: ACTIVE, TRIALING, PAST_DUE, CANCELED, UNPAID
 
 model TenantSettings {
   id       String @id @default(cuid())
@@ -149,8 +134,8 @@ model TenantSettings {
   // Branding
   primaryColor   String  @default("#3b82f6")
   accentColor    String  @default("#06b6d4")
-  customCSS      String? // @db.Text for MySQL/PostgreSQL
-  customJS       String? // @db.Text for MySQL/PostgreSQL
+  customCSS      String? @db.Text
+  customJS       String? @db.Text
 
   // Features
   allowPublicDocs Boolean @default(true)
@@ -172,7 +157,7 @@ model TenantMember {
   id        String   @id @default(cuid())
   tenantId  String
   userId    String
-  role      TenantRole @default(VIEWER)
+  role      String @default("VIEWER") // TenantRole: OWNER, ADMIN, MEMBER, VIEWER
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -185,12 +170,7 @@ model TenantMember {
   @@map("tenant_members")
 }
 
-enum TenantRole {
-  OWNER  // Full access
-  ADMIN  // Manage content & members
-  MEMBER // Edit content
-  VIEWER // Read-only access
-}
+// TenantRole values: OWNER (Full access), ADMIN (Manage content & members), MEMBER (Edit content), VIEWER (Read-only access)
 
 // =============================================================================
 // DOCUMENTATION SYSTEM
@@ -241,7 +221,7 @@ model Document {
   versionId String
   title     String
   slug      String
-  content   String // @db.Text for MySQL/PostgreSQL — MDX content
+  content   String @db.Text
   excerpt   String?
   locale    String   @default("en") // "en" or "id"
   
@@ -281,7 +261,7 @@ model AuditLog {
   action    String
   resource  String
   resourceId String?
-  metadata  String? // @db.Text for MySQL/PostgreSQL — JSON
+  metadata  String? @db.Text
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())

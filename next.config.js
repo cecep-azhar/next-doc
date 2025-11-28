@@ -3,9 +3,7 @@ const { withContentlayer } = require('next-contentlayer2');
 
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   experimental: {
-    ppr: true, // Partial Prerendering
     reactCompiler: true, // React 19 Compiler
     serverActions: {
       bodySizeLimit: '5mb',
@@ -57,14 +55,7 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
-    return [
-      {
-        source: '/docs/:path*',
-        destination: '/app/:tenantSlug/docs/:path*',
-      },
-    ];
-  },
+
 };
 
 module.exports = withContentlayer(nextConfig);

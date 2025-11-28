@@ -19,11 +19,9 @@
 
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
-import { createClient } from '@libsql/client';
-import { PrismaLibSQL } from '@prisma/adapter-libsql';
 
 // Get database mode from environment
-const DATABASE_MODE = process.env.DATABASE_MODE || 'sqlite';
+const DATABASE_MODE = process.env.DATABASE_MODE || 'mysql';
 const DATABASE_URL = process.env.DATABASE_URL!;
 const PRISMA_ACCELERATE_URL = process.env.PRISMA_ACCELERATE_URL;
 
@@ -36,37 +34,7 @@ function initializePrisma() {
 
   switch (DATABASE_MODE.toLowerCase()) {
     // -------------------------------------------------------------------------
-    // MODE 1: LOCAL SQLITE (Development)
-    // -------------------------------------------------------------------------
-    case 'sqlite':
-      console.log('   → Using local SQLite database');
-      return new PrismaClient({
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
-
-    // -------------------------------------------------------------------------
-    // MODE 2: TURSO (Edge SQLite)
-    // -------------------------------------------------------------------------
-    case 'turso':
-      console.log('   → Using Turso (libSQL) database');
-      if (!process.env.TURSO_AUTH_TOKEN) {
-        throw new Error('TURSO_AUTH_TOKEN is required when DATABASE_MODE=turso');
-      }
-      
-      const libsql = createClient({
-        url: DATABASE_URL,
-        authToken: process.env.TURSO_AUTH_TOKEN,
-      });
-
-      const adapter = new PrismaLibSQL(libsql);
-
-      return new PrismaClient({
-        adapter,
-        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      });
-
-    // -------------------------------------------------------------------------
-    // MODE 3: MYSQL (Self-Hosted)
+    // MODE 1: MYSQL (Primary - Self-Hosted or Cloud)
     // -------------------------------------------------------------------------
     case 'mysql':
       console.log('   → Using MySQL database');
@@ -88,7 +56,7 @@ function initializePrisma() {
       return mysqlClient;
 
     // -------------------------------------------------------------------------
-    // MODE 4: PLANETSCALE / NEON / RAILWAY (Cloud)
+    // MODE 2: PLANETSCALE / NEON / RAILWAY (Cloud)
     // -------------------------------------------------------------------------
     case 'planetscale':
     case 'neon':
@@ -112,10 +80,10 @@ function initializePrisma() {
       return cloudClient;
 
     // -------------------------------------------------------------------------
-    // FALLBACK: Default to SQLite
+    // FALLBACK: Default to MySQL
     // -------------------------------------------------------------------------
     default:
-      console.warn(`⚠️  Unknown DATABASE_MODE: ${DATABASE_MODE}, falling back to SQLite`);
+      console.warn(`⚠️  Unknown DATABASE_MODE: ${DATABASE_MODE}, falling back to MySQL`);
       return new PrismaClient({
         log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
       });
@@ -155,10 +123,7 @@ export async function checkDatabaseConnection() {
 // GRACEFUL SHUTDOWN
 // =============================================================================
 
-if (typeof window === 'undefined') {
-  process.on('beforeExit', async () => {
-    await db.$disconnect();
-  });
-}
+// Note: Removed process.on('beforeExit') as it's not supported in Edge Runtime
+// Database connections will be managed by connection pooling
 
 export default db;
