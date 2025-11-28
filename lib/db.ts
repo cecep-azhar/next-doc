@@ -25,11 +25,14 @@ const DATABASE_MODE = process.env.DATABASE_MODE || 'mysql';
 const DATABASE_URL = process.env.DATABASE_URL!;
 const PRISMA_ACCELERATE_URL = process.env.PRISMA_ACCELERATE_URL;
 
+// Type for our enhanced Prisma client
+type EnhancedPrismaClient = ReturnType<typeof initializePrisma>;
+
 // =============================================================================
 // INITIALIZE PRISMA CLIENT BASED ON DATABASE MODE
 // =============================================================================
 
-function initializePrisma() {
+function initializePrisma(): PrismaClient {
   console.log(`🗄️  Initializing Prisma with mode: ${DATABASE_MODE}`);
 
   switch (DATABASE_MODE.toLowerCase()) {
@@ -50,7 +53,7 @@ function initializePrisma() {
       // Add Prisma Accelerate if URL provided
       if (PRISMA_ACCELERATE_URL) {
         console.log('   → Prisma Accelerate enabled');
-        return mysqlClient.$extends(withAccelerate());
+        return mysqlClient.$extends(withAccelerate()) as unknown as PrismaClient;
       }
 
       return mysqlClient;
@@ -74,7 +77,7 @@ function initializePrisma() {
       // Prisma Accelerate recommended for cloud providers
       if (PRISMA_ACCELERATE_URL) {
         console.log('   → Prisma Accelerate enabled (recommended for production)');
-        return cloudClient.$extends(withAccelerate());
+        return cloudClient.$extends(withAccelerate()) as unknown as PrismaClient;
       }
 
       return cloudClient;
@@ -95,7 +98,7 @@ function initializePrisma() {
 // =============================================================================
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof initializePrisma> | undefined;
+  prisma: PrismaClient | undefined;
 };
 
 export const db = globalForPrisma.prisma ?? initializePrisma();

@@ -7,9 +7,10 @@ import type { TenantRole } from '@/lib/permissions';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  props: { params: Promise<{ tenantId: string }> }
 ) {
   try {
+    const params = await props.params;
     const session = await auth();
     
     if (!session?.user?.id) {
@@ -140,9 +141,10 @@ export async function POST(
 // GET members list
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tenantId: string } }
+  props: { params: Promise<{ tenantId: string }> }
 ) {
   try {
+    const params = await props.params;
     const session = await auth();
     
     if (!session?.user?.id) {
