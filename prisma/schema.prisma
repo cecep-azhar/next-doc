@@ -102,7 +102,7 @@ model Tenant {
   owner   User   @relation("TenantOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Subscription
-  plan              String  @default("FREE") // Plan: FREE, PRO, TEAM
+  plan              String  @default("FREE") // Plan: FREE, PRO
   stripeCustomerId  String?           @unique
   stripeSubscriptionId String?        @unique
   stripeProductId   String?
@@ -124,7 +124,7 @@ model Tenant {
   @@map("tenants")
 }
 
-// Plan values: FREE, PRO, TEAM
+// Plan values: FREE, PRO
 // SubscriptionStatus values: ACTIVE, TRIALING, PAST_DUE, CANCELED, UNPAID
 
 model TenantSettings {
@@ -157,7 +157,7 @@ model TenantMember {
   id        String   @id @default(cuid())
   tenantId  String
   userId    String
-  role      String @default("VIEWER") // TenantRole: OWNER, ADMIN, MEMBER, VIEWER
+  role      String @default("VIEWER") // TenantRole: OWNER, ADMIN, EDITOR, VIEWER
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -170,7 +170,7 @@ model TenantMember {
   @@map("tenant_members")
 }
 
-// TenantRole values: OWNER (Full access), ADMIN (Manage content & members), MEMBER (Edit content), VIEWER (Read-only access)
+// TenantRole values: OWNER (Full access + billing), ADMIN (Manage team & content), EDITOR (Create/edit docs), VIEWER (Read-only)
 
 // =============================================================================
 // DOCUMENTATION SYSTEM

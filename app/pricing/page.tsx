@@ -15,58 +15,44 @@ export default function PricingPage() {
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-3">
+      <div className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto">
         <PricingCard
-          name="Free"
+          name="Free Forever"
           price={0}
           description="Perfect for personal projects"
           features={[
-            '1 project',
-            '100 documents',
-            'Basic search',
-            '3 team members',
+            '10 projects',
+            '100 pages',
+            'Up to 3 team members',
+            '3 versions per project',
+            '5MB file uploads',
+            '500MB storage',
             'Community support',
-            'Public docs only',
           ]}
-          cta="Get Started"
+          cta="Get Started Free"
           href="/auth/signup"
         />
 
         <PricingCard
           name="Pro"
-          price={9}
-          description="For growing teams"
+          price={19}
+          description="Everything unlimited for your business"
           features={[
             'Unlimited projects',
-            'Unlimited documents',
-            'Advanced search',
-            '10 team members',
+            'Unlimited pages',
+            'Unlimited team members',
+            'Unlimited versions',
             'Custom domain',
+            'Remove branding',
+            'Advanced analytics',
+            'API access',
+            '100MB file uploads',
+            'Unlimited storage',
             'Priority support',
-            'Analytics',
-            'Private docs',
           ]}
           popular
-          cta="Start Free Trial"
+          cta="Start 14-Day Free Trial"
           href="/auth/signup?plan=pro"
-        />
-
-        <PricingCard
-          name="Team"
-          price={29}
-          description="For large organizations"
-          features={[
-            'Everything in Pro',
-            'Unlimited team members',
-            'Advanced permissions',
-            'SSO',
-            'Dedicated support',
-            'SLA',
-            'Custom integrations',
-            'White-label options',
-          ]}
-          cta="Start Free Trial"
-          href="/auth/signup?plan=team"
         />
       </div>
 
